@@ -16,7 +16,7 @@ function saveSecretKey(secretKey){
     const encryptedData = CryptoJS.AES.encrypt(JSON.stringify(secretKey), "q1w2e3r4").toString();
     fileSystem.writeFileSync(
         `secretKey.json`,
-        JSON.stringify({"key" : encryptedData}),
+    JSON.stringify([{"key" : `${encryptedData}`}]),
         'utf8'
     )
 }
@@ -25,17 +25,23 @@ function saveSecretKey(secretKey){
 function loadSecretKey(){
     const tmpSecretKey = fileSystem.readFileSync('./secretKey.json', 'utf8')
     const encryptedData = JSON.parse(tmpSecretKey)
-    const decryptedData = CryptoJS.AES.decrypt(encryptedData.key, "q1w2e3r4")
+    //console.log(encryptedData)
+    const decryptedData = CryptoJS.AES.decrypt(encryptedData[0].key, "q1w2e3r4")
     const decryptedText = decryptedData.toString(CryptoJS.enc.Utf8)
-    return decryptedText;
+    const secretKey = decryptedText.substring(1, decryptedText.length - 1)
+    //console.log(secretKey)
+    return secretKey
 }
 
 function saveJson(memoList, secretKey, menu){ 
     // memoList 리스트를 memo.json에 저장
-    let encryptedData = CryptoJS.AES.encrypt(JSON.stringify(memoList), secretKey).toString();
+    //console.log(memoList)
+    let encryptedData = CryptoJS.AES.encrypt(memoList, secretKey).toString();
+    //console.log(encryptedData)
+    const encryptedString = `[{"encrypted" : "${encryptedData}"}]`
     fileSystem.writeFileSync(
         `memo.json`,
-        encryptedData,
+        encryptedString,
         'utf8'
     )
     console.log(`!! ${menu}되었습니다`)
@@ -43,15 +49,18 @@ function saveJson(memoList, secretKey, menu){
 
 function loadJson(secretKey){ 
     // memo.json을 memoList 리스트로 읽어오기
+    //console.log(secretKey)
     const tmpMemoJson = fileSystem.readFileSync('./memo.json', 'utf8')
-    console.log(tmpMemoJson)
-    const decryptedData = CryptoJS.AES.decrypt(tmpMemoJson, secretKey);
-    console.log(decryptedData)
+    //console.log(tmpMemoJson)
+    const memoJson = JSON.parse(tmpMemoJson)
+    //console.log(memoJson)
+    const decryptedData = CryptoJS.AES.decrypt(memoJson[0].encrypted, secretKey);
+    //console.log(decryptedData)
     const descryptedText = decryptedData.toString(CryptoJS.enc.Utf8);
     console.log(descryptedText)
-    const memoList = JSON.stringify(descryptedText)
-    if(memoList == "[]"){
-        return []
+    const memoList = JSON.parse(descryptedText)
+    if(memoList.length === 1){
+        return -1
     }
     console.log(memoList)
     return memoList
@@ -89,13 +98,13 @@ function writeMemo(){
 
 function searchMemo(memoList, menu){
     // 메모의 제목과 내용을 조회
-    if(memoList.length === 0){
+    if(memoList === -1){
         // memoList가 비어있을 경우에 대한 예외처리
         console.log(`!! ${menu}할 항목이 없습니다.`)
-        return []
+        return -1
     }
-    for(let i = 0; i < memoList.length; i++){
-        console.log(`[${i + 1}] 제목: ${memoList[i].title}`)
+    for(let i = 1; i < memoList.length; i++){
+        console.log(`[${i}] 제목: ${memoList[i].title}`)
         console.log(`--- 내용: ${memoList[i].content}`)
     }
     return 0
@@ -103,37 +112,38 @@ function searchMemo(memoList, menu){
 
 function selectMemo(memoList, menu){
     let memoNum = parseInt(readlineSyncModule.question(`?? ${menu}하고자 하는 메모의 번호를 입력하세요 >> `), 10)
-    if(memoNum <= 0 || memoNum  >= memoList.length + 1){
+    if(memoNum <= 1 || memoNum  >= memoList.length){
         // 인덱스를 넘어가는 번호가 입력되었을 경우 예외처리
         console.log("!! 잘못된 입력입니다.")
         console.log("!! 메인 메뉴로 돌아갑니다.")
-        return -1
+        return 
     }
-    return memoNum - 1
+    return memoNum
 }
 
 function run(){
     // -- 프로그램의 시작 --
-    let memoList = []
+    let memoList = `[{"title" : null, "content" : null}]`
 
     // secretKey.json이 없을때 - 초기 비밀번호를 secretKey.json으로 저장하는 방식으로 파일 생성
     if (fileExists('./secretKey.json') === false){
         saveSecretKey("1234")
     }
+    let secretKey = loadSecretKey()
     // memo.json이 없을때 - 빈 문자열을 memo.json으로 저장하는 방식으로 파일 생성
     if (fileExists('./memo.json') === false){
-        saveJson(memoList, "메모 저장공간이 생성")
+        saveJson(memoList, secretKey, "메모 저장공간이 생성")
     }
 
-    let secretKey = loadSecretKey()
-    memoList = loadJson(secretKey)
+    
     console.log("?? 비밀번호를 입려하시오.")
     console.log("!! (초기 비밀번호는 1234 입니다.)")
     const inputKey = readlineSyncModule.question(">> ")
-    if (inputKey == secretKey){
+    if (inputKey != secretKey){
         console.log("!! 비밀번호가 틀렸습니다. 프로그램을 종료합니다.")
         process.exit(1)
     }
+    memoList = loadJson(secretKey)
 
     console.log("< 메모장 >")
     while(true){
@@ -161,7 +171,7 @@ function run(){
                 secretKey = loadSecretKey()
                 let memoListR = loadJson(secretKey)
                 let flagR = searchMemo(memoListR, "수정")
-                if (flagR == "[]"){
+                if (flagR === -1){
                     // memoList가 비어있는 경우 예외처리
                     break
                 }
@@ -183,7 +193,7 @@ function run(){
                 secretKey = loadSecretKey() 
                 let memoListD = loadJson(secretKey)
                 let flagD = searchMemo(memoListD, "삭제")
-                if (flagD == "[]"){
+                if (flagD === -1){
                     // memoList가 비어있는 경우 예외처리
                     break
                 }
