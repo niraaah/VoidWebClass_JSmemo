@@ -36,7 +36,8 @@ function loadSecretKey(){
 function saveJson(memoList, secretKey, menu){ 
     // memoList 리스트를 memo.json에 저장
     //console.log(memoList)
-    let encryptedData = CryptoJS.AES.encrypt(memoList, secretKey).toString();
+    const stringifyMemoList = JSON.stringify(memoList)
+    let encryptedData = CryptoJS.AES.encrypt(stringifyMemoList, secretKey).toString();
     //console.log(encryptedData)
     const encryptedString = `[{"encrypted" : "${encryptedData}"}]`
     fileSystem.writeFileSync(
@@ -49,20 +50,18 @@ function saveJson(memoList, secretKey, menu){
 
 function loadJson(secretKey){ 
     // memo.json을 memoList 리스트로 읽어오기
-    //console.log(secretKey)
+    //console.log(`secretKey: ${secretKey}`)
     const tmpMemoJson = fileSystem.readFileSync('./memo.json', 'utf8')
-    //console.log(tmpMemoJson)
+    //console.log(`tmpMemoJson: ${tmpMemoJson}`)
     const memoJson = JSON.parse(tmpMemoJson)
-    //console.log(memoJson)
+    //console.log(`memoJson: ${memoJson}`)
     const decryptedData = CryptoJS.AES.decrypt(memoJson[0].encrypted, secretKey);
-    //console.log(decryptedData)
+    //console.log(`decryptedData: ${decryptedData}`)
     const descryptedText = decryptedData.toString(CryptoJS.enc.Utf8);
-    console.log(descryptedText)
-    const memoList = JSON.parse(descryptedText)
-    if(memoList.length === 1){
-        return -1
-    }
-    console.log(memoList)
+    //console.log(`descryptedText: ${descryptedText}`)
+    //console.log(`typeof descryptedText: ${typeof descryptedText}`);
+    let memoList = JSON.parse(descryptedText)
+    //console.log(`memoList: ${memoList}`)
     return memoList
 }
 
@@ -98,7 +97,7 @@ function writeMemo(){
 
 function searchMemo(memoList, menu){
     // 메모의 제목과 내용을 조회
-    if(memoList === -1){
+    if(memoList.length === 1){
         // memoList가 비어있을 경우에 대한 예외처리
         console.log(`!! ${menu}할 항목이 없습니다.`)
         return -1
@@ -112,11 +111,11 @@ function searchMemo(memoList, menu){
 
 function selectMemo(memoList, menu){
     let memoNum = parseInt(readlineSyncModule.question(`?? ${menu}하고자 하는 메모의 번호를 입력하세요 >> `), 10)
-    if(memoNum <= 1 || memoNum  >= memoList.length){
+    if(memoNum < 1 || memoNum  >= memoList.length){
         // 인덱스를 넘어가는 번호가 입력되었을 경우 예외처리
         console.log("!! 잘못된 입력입니다.")
         console.log("!! 메인 메뉴로 돌아갑니다.")
-        return 
+        return -1
     }
     return memoNum
 }
@@ -144,6 +143,7 @@ function run(){
         process.exit(1)
     }
     memoList = loadJson(secretKey)
+    console.log(`loadJson 후의 memoList: ${memoList}`)
 
     console.log("< 메모장 >")
     while(true){
